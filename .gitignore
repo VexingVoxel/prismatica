@@ -1,0 +1,40 @@
+# Godot-specific ignores
+.godot/
+export_presets.cfg.old # Old export preset files
+# User-specific configuration (editor layout, etc.)
+.editor/
+.vscode/ # VS Code specific settings (if not shared)
+
+# Mono / C# Godot project files
+.mono/
+.vs/
+bin/
+obj/
+
+# Imported Assets (can be re-imported from source files)
+# Typically, you commit source assets and let Godot re-generate .import files.
+# However, if you're collaborating and want to ensure everyone has the exact same import settings,
+# you might commit them. For this project, let's ignore.
+*.import
+*.converted # Converted assets
+
+# Generated translation files
+*.translation
+
+# Temporary files
+*~
+*.timestamp
+.DS_Store # macOS specific
+Thumbs.db # Windows specific
+
+# Dynamic/User data
+*.pck
+*.zip
+user://*
+# Other temp files from various software
+*.bak
+*.orig
+*.swp
+
+# Godot Crash logs
+crash_logs/
