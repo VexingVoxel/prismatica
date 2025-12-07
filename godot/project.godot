@@ -1,0 +1,32 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Gemini Project"
+run/main_scene="res://game/scenes/main.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+WindowManager="*res://_core/autoload/window_manager.gd"
+CoreEventBus="*res://_core/autoload/core_event_bus.gd"
+InputManager="*res://_core/autoload/input_manager.gd"
+SaveManager="*res://_core/autoload/save_manager.gd"
+AudioManager="*res://_core/autoload/audio_manager.gd"
+
+[display]
+
+window/subwindows/embed_subwindows=false
+
+[dotnet]
+
+project/assembly_name="Gemini Project"
