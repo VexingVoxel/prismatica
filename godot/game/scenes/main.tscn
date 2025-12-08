@@ -13,14 +13,16 @@ background_mode = 3
 glow_enabled = true
 glow_levels/1 = 1.0
 glow_levels/2 = 1.0
-glow_levels/3 = 0.6
-glow_levels/4 = 0.6
-glow_levels/5 = 0.4
-glow_intensity = 1.5
-glow_bloom = 0.5
+glow_levels/3 = 0.3
+glow_levels/5 = 0.0
+glow_intensity = 0.3
+glow_strength = 0.5
+glow_bloom = 0.3
 glow_blend_mode = 0
-glow_hdr_threshold = 0.9
-glow_hdr_scale = 1.5
+glow_hdr_threshold = 0.8
+glow_hdr_scale = 1.2
+tonemap_mode = 0
+auto_exposure_enabled = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_plasma"]
 shader = ExtResource("5_plasma")
@@ -58,7 +60,7 @@ environment = SubResource("Environment_glow")
 script = ExtResource("4_camera_shake")
 
 [node name="BackgroundCanvas" type="CanvasLayer" parent="."]
-layer = -1
+layer = -2
 
 [node name="BackgroundNode" type="Control" parent="BackgroundCanvas"]
 layout_mode = 3
@@ -81,7 +83,7 @@ mouse_filter = 2
 color = Color(0, 0, 0, 1)
 
 [node name="GridCanvas" type="CanvasLayer" parent="."]
-layer = 0
+layer = -1
 follow_viewport_enabled = true
 
 [node name="FloorRect" type="ColorRect" parent="GridCanvas"]
@@ -102,12 +104,9 @@ offset_right = 50000.0
 offset_bottom = 50000.0
 mouse_filter = 2
 
-[node name="GameplayCanvas" type="CanvasLayer" parent="."]
-follow_viewport_enabled = true
-
-[node name="GridView" type="Node2D" parent="GameplayCanvas"]
+[node name="GridView" type="Node2D" parent="."]
 script = ExtResource("3_grid_view")
 
-[node name="CoreVisual" type="Node2D" parent="GameplayCanvas/GridView"]
+[node name="CoreVisual" type="Node2D" parent="GridView"]
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]

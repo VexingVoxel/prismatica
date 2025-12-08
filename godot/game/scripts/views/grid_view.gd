@@ -79,11 +79,11 @@ func _on_grid_shape_leveled(coords: Vector2i, new_level: int, _is_max: bool) -> 
 	if poly and poly.material:
 		var mat: ShaderMaterial = poly.material
 		
-		# Colors
-		var color_low: Color = Color(0.0, 0.4, 0.4, 0.8) # Dim
-		var color_mid: Color = Color(0.0, 1.0, 1.0, 1.0) # Standard
-		var color_high: Color = Color(0.0, 2.0, 2.0, 1.0) # HDR
-		var color_max: Color = Color(0.0, 4.0, 4.0, 1.0) # Pure HDR Cyan (No Red)
+		# Colors - All HDR for Glow
+		var color_low: Color = Color(0.0, 0.4, 0.4, 1.0) # Level 1 (Very Muted) - No Glow
+		var color_mid: Color = Color(0.0, 0.6, 0.6, 1.0) # Level 2-3 (Subtle Visible) - No Glow
+		var color_high: Color = Color(0.0, 0.75, 0.75, 1.0) # Level 4 (Clearly Visible) - No Glow
+		var color_max: Color = Color(0.0, 3.5, 3.5, 1.0) # Level 5 (Spot on glow)
 		
 		# Target Props
 		var target_color: Color
@@ -102,9 +102,8 @@ func _on_grid_shape_leveled(coords: Vector2i, new_level: int, _is_max: bool) -> 
 			target_fill_alpha = 0.0
 		else: # Level 5+
 			target_color = color_max
-			target_width = 4.0 # Slight bump for max
-			target_fill_alpha = 0.6 # Semi-transparent fill to show outline contrast
-		
+			target_width = 3.0 # Match others to prevent blob
+			target_fill_alpha = 0.2 # Very semi-transparent fill		
 		var tween: Tween = create_tween()
 		tween.set_parallel(true)
 		
@@ -180,7 +179,7 @@ func _draw_core_visual() -> void:
 
 	# 3. Primary Ring (Energy Flow - Static Geometry, Scrolling Texture)
 	create_ring.call(48.0, 8.0, Color.WHITE, "res://assets/shaders/energy_flow.gdshader", {
-		"base_color": Color(4.0, 4.0, 4.0),
+		"base_color": Color(4.0, 4.0, 4.0), # Reverted
 		"flow_color": Color(0.0, 2.0, 2.0),
 		"speed": 2.0,
 		"turbulence": 5.0
@@ -188,7 +187,7 @@ func _draw_core_visual() -> void:
 
 	# 4. Inner Ring (Gyro - Fast Energy)
 	var inner_ring = create_ring.call(32.0, 2.0, Color.WHITE, "res://assets/shaders/energy_flow.gdshader", {
-		"base_color": Color(8.0, 8.0, 8.0), # Very bright
+		"base_color": Color(8.0, 8.0, 8.0), # Reverted
 		"flow_color": Color(0.0, 1.0, 1.0),
 		"speed": 5.0,
 		"turbulence": 2.0
@@ -206,8 +205,8 @@ func _draw_core_visual() -> void:
 	
 	var orb_mat = ShaderMaterial.new()
 	orb_mat.shader = preload("res://assets/shaders/singularity_orb.gdshader")
-	orb_mat.set_shader_parameter("core_color", Color(4.0, 2.0, 0.5, 1.0)) # Amber
-	orb_mat.set_shader_parameter("edge_color", Color(4.0, 0.5, 0.0, 1.0)) # Red
+	orb_mat.set_shader_parameter("core_color", Color(4.0, 2.0, 0.5, 1.0)) # Reverted
+	orb_mat.set_shader_parameter("edge_color", Color(4.0, 0.5, 0.0, 1.0)) # Reverted
 	orb.material = orb_mat
 	
 	core_visual.add_child(orb)
@@ -254,11 +253,11 @@ func _spawn_shape_visual(coords: Vector2i, type: String, level: int = 1) -> void
 	# Apply Shader
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = SHAPE_SHELL_SHADER
-	# Initial params (Level 0/1)
-	material.set_shader_parameter("outline_color", Color(0.0, 0.4, 0.4, 0.5)) # Dim Cyan
-	material.set_shader_parameter("fill_color", Color(0.0, 1.0, 1.0, 1.0)) # Solid Cyan
+	# Initial params (Level 0/1) - HDR for Glow
+	material.set_shader_parameter("outline_color", Color(0.0, 0.4, 0.4, 1.0)) # Very Muted Cyan (Barely Visible)
+	material.set_shader_parameter("fill_color", Color(0.0, 1.0, 1.0, 1.0)) 
 	material.set_shader_parameter("outline_width", 2.0)
-	material.set_shader_parameter("fill_alpha", 0.0) # Empty
+	material.set_shader_parameter("fill_alpha", 0.0) 
 	material.set_shader_parameter("size", Vector2(size, size))
 	poly.material = material
 	
