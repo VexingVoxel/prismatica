@@ -1,18 +1,25 @@
 class_name VFXManagerClass extends Node
 
-## VFXManager
-##
-## Responsibility: Manages visual effects (particles) and acts as the
-## 2D-to-3D bridge for the Core Audio system.
-##
-## Architecture: Autoload (Singleton)
+var _spark_texture: GradientTexture2D
 
 # ------------------------------------------------------------------------------
 # Initialization
 # ------------------------------------------------------------------------------
 
 func _ready() -> void:
+	_init_resources()
 	_connect_signals()
+
+func _init_resources() -> void:
+	_spark_texture = GradientTexture2D.new()
+	_spark_texture.fill = GradientTexture2D.FILL_RADIAL
+	_spark_texture.fill_from = Vector2(0.5, 0.5)
+	_spark_texture.fill_to = Vector2(0.5, 0.0)
+	_spark_texture.width = 16
+	_spark_texture.height = 16
+	var grad = Gradient.new()
+	grad.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0)])
+	_spark_texture.gradient = grad
 
 func _connect_signals() -> void:
 	# Listen for gameplay events that need audio feedback
@@ -33,11 +40,70 @@ func _on_grid_shape_placed(coords: Vector2i, _type: String) -> void:
 
 func _on_core_clicked(position: Vector2) -> void:
 	# 1. Visuals: Spawn click burst
-	_spawn_particles(position, Color.WHITE, 16, 0.5, 200.0)
+	_spawn_particles(position, Color(4.0, 3.5, 1.0), 16, 0.5, 200.0)
+	# 2. Visuals: Fly to HUD (Single significant spark)
+	spawn_currency_flight(position, 1)
 	
-	# 2. Audio: Play click sound
+	# 3. Audio: Play click sound
 	play_sfx_2d("sfx_core_click", position)
 
+# ...
+
+func spawn_currency_flight(start_pos: Vector2, amount: int) -> void:
+	var viewport = get_viewport()
+	var screen_size = viewport.get_visible_rect().size
+	
+	# 1. Calculate Positions in Screen Space (HUD)
+	var transform = viewport.canvas_transform
+	var start_screen_pos = transform * start_pos
+	var target_screen_pos = Vector2(screen_size.x / 2.0, 60.0) # Top Center
+	
+	# 2. Find a valid parent (CanvasLayer)
+	# Try to find the HUD layer, or create a temporary one if needed
+	# For simplicity in this POC, we'll create a temporary CanvasLayer for this burst
+	# (Optimisation: Pool this layer)
+	var vfx_layer = CanvasLayer.new()
+	vfx_layer.layer = 100 # High layer
+	get_tree().current_scene.add_child(vfx_layer)
+	
+	# Auto-cleanup layer after animation
+	var total_duration = 1.5
+	get_tree().create_timer(total_duration).timeout.connect(vfx_layer.queue_free)
+	
+	for i in range(amount):
+		var sprite = Sprite2D.new()
+		sprite.texture = _spark_texture 
+		sprite.scale = Vector2(1.0, 1.0) # 16px
+		sprite.position = start_screen_pos
+		# No Z-Index needed, Layer 100 handles it
+		vfx_layer.add_child(sprite)
+		
+		# Add Sizzle Trail
+		var trail = CPUParticles2D.new()
+		trail.amount = 16
+		trail.lifetime = 0.5
+		trail.local_coords = false
+		trail.texture = _spark_texture
+		trail.scale_amount_min = 0.2
+		trail.scale_amount_max = 0.5
+		trail.color = Color(1.0, 0.8, 0.2) # Gold Sizzle
+		trail.gravity = Vector2(0, 100)
+		trail.emitting = true
+		sprite.add_child(trail)
+		
+		var duration = randf_range(0.8, 1.2)
+		var spread = Vector2(randf_range(-32, 32), randf_range(-32, 32))
+		
+		var tween = vfx_layer.create_tween() # Bound to layer
+		
+		# Burst out (Screen Space spread)
+		tween.tween_property(sprite, "position", start_screen_pos + spread, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		
+		# Fly to target
+		tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(0.05)
+		
+		# No shrink, just vanish on queue_free (persists until layer cleanup)
+		
 # ------------------------------------------------------------------------------
 # Internal Helpers
 # ------------------------------------------------------------------------------
@@ -56,6 +122,7 @@ func _spawn_particles(pos: Vector2, color: Color, amount: int = 10, lifetime: fl
 	parts.scale_amount_min = 2.0
 	parts.scale_amount_max = 4.0
 	parts.color = color
+	parts.z_index = 200 # Render above everything
 	
 	# Add to scene tree - ideally to a specific layer, but we'll add to self (VFXManager is a Node)
 	# Wait, VFXManager is an Autoload (Node). If we add child to it, where does it render?
