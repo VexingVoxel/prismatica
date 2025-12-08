@@ -34,3 +34,7 @@ window/subwindows/embed_subwindows=false
 [dotnet]
 
 project/assembly_name="Gemini Project"
+
+[rendering]
+
+viewport/hdr_2d=true
