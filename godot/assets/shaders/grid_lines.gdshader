@@ -6,7 +6,7 @@ uniform float grid_size = 64.0;
 uniform float line_thickness = 1.0;
 
 // Lighting
-const int MAX_LIGHTS = 128;
+const int MAX_LIGHTS = 64;
 uniform vec2 light_sources[MAX_LIGHTS];
 uniform int light_count = 0;
 uniform float light_radius = 250.0;

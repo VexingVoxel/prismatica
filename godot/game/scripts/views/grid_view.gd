@@ -28,6 +28,7 @@ const DATA_FLOW_SHADER = preload("res://assets/shaders/data_flow.gdshader")
 var _visuals: Dictionary = {} # { Vector2i: Node2D }
 var _light_positions: Array[Vector2] = []
 @onready var grid_lines: ColorRect = get_node_or_null("/root/Main/GridCanvas/GridLines")
+@onready var floor_rect: ColorRect = get_node_or_null("/root/Main/GridCanvas/FloorRect")
 
 func _ready() -> void:
 	# Initialize Lighting with Core Position
@@ -46,19 +47,19 @@ func _connect_signals() -> void:
 	# GameplayEventBus.resource_changed.connect(...) for updating visual level if needed
 
 func _add_light_source(pos: Vector2) -> void:
-	if not grid_lines: 
-		print("Error: GridLines node not found")
-		return
-	if not grid_lines.material: return
-	
 	_light_positions.append(pos)
-	print("Adding Light Source at: ", pos, " Total: ", _light_positions.size())
 	
-	# Update Shader
-	var mat: ShaderMaterial = grid_lines.material
-	mat.set_shader_parameter("light_count", _light_positions.size())
-	# Convert to PackedVector2Array for reliable shader transfer
-	mat.set_shader_parameter("light_sources", PackedVector2Array(_light_positions))
+	# Update Grid Lines Shader
+	if grid_lines and grid_lines.material:
+		var mat: ShaderMaterial = grid_lines.material
+		mat.set_shader_parameter("light_count", _light_positions.size())
+		mat.set_shader_parameter("light_sources", PackedVector2Array(_light_positions))
+		
+	# Update Floor Shader
+	if floor_rect and floor_rect.material:
+		var mat: ShaderMaterial = floor_rect.material
+		mat.set_shader_parameter("light_count", _light_positions.size())
+		mat.set_shader_parameter("light_sources", PackedVector2Array(_light_positions))
 
 # ------------------------------------------------------------------------------
 # Event Handlers
@@ -129,6 +130,19 @@ func _draw_core_visual() -> void:
 	# Draw the Core Circle
 	core_visual.z_index = 10 # Draw on top
 	
+	# 1. Reactor Floor (Background)
+	var floor_rect = ColorRect.new()
+	floor_rect.size = Vector2(192, 192)
+	floor_rect.position = Vector2(-96, -96)
+	floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var floor_mat = ShaderMaterial.new()
+	floor_mat.shader = preload("res://assets/shaders/reactor_floor.gdshader")
+	floor_rect.material = floor_mat
+	
+	core_visual.add_child(floor_rect)
+	
+	# 2. Core Geometry
 	var poly: Polygon2D = Polygon2D.new()
 	var points: PackedVector2Array = PackedVector2Array()
 	var segments: int = 32
