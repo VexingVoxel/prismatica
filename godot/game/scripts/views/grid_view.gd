@@ -12,7 +12,7 @@ class_name GridViewClass extends Node2D
 # ------------------------------------------------------------------------------
 
 const GRID_CELL_SIZE: int = 64
-const LIQUID_SHADER = preload("res://assets/shaders/liquid_fill.gdshader")
+const SHAPE_SHELL_SHADER = preload("res://assets/shaders/shape_shell.gdshader")
 const DATA_FLOW_SHADER = preload("res://assets/shaders/data_flow.gdshader")
 
 # ------------------------------------------------------------------------------
@@ -25,7 +25,14 @@ const DATA_FLOW_SHADER = preload("res://assets/shaders/data_flow.gdshader")
 # Initialization
 # ------------------------------------------------------------------------------
 
+var _visuals: Dictionary = {} # { Vector2i: Node2D }
+var _light_positions: Array[Vector2] = []
+@onready var grid_lines: ColorRect = get_node_or_null("/root/Main/GridCanvas/GridLines")
+
 func _ready() -> void:
+	# Initialize Lighting with Core Position
+	_add_light_source(Vector2.ZERO)
+	
 	# Camera2D will handle centering (Core is at 0,0)
 	
 	_draw_core_visual()
@@ -38,6 +45,21 @@ func _connect_signals() -> void:
 	GameplayEventBus.core_clicked.connect(_on_core_clicked)
 	# GameplayEventBus.resource_changed.connect(...) for updating visual level if needed
 
+func _add_light_source(pos: Vector2) -> void:
+	if not grid_lines: 
+		print("Error: GridLines node not found")
+		return
+	if not grid_lines.material: return
+	
+	_light_positions.append(pos)
+	print("Adding Light Source at: ", pos, " Total: ", _light_positions.size())
+	
+	# Update Shader
+	var mat: ShaderMaterial = grid_lines.material
+	mat.set_shader_parameter("light_count", _light_positions.size())
+	# Convert to PackedVector2Array for reliable shader transfer
+	mat.set_shader_parameter("light_sources", PackedVector2Array(_light_positions))
+
 # ------------------------------------------------------------------------------
 # Event Handlers
 # ------------------------------------------------------------------------------
@@ -48,21 +70,48 @@ func _on_grid_shape_placed(coords: Vector2i, type: String) -> void:
 	_update_connections(coords)
 
 func _on_grid_shape_leveled(coords: Vector2i, new_level: int, _is_max: bool) -> void:
-	# Find the visual node (We need a tracking dictionary)
 	if not _visuals.has(coords):
 		return
 		
 	var visual: Node2D = _visuals[coords]
 	var poly: Polygon2D = visual.get_node("Poly")
 	if poly and poly.material:
-		# Visual Feedback: Increase fill
-		var target_fill: float = clamp(0.2 * (new_level - 1), 0.0, 1.0)
+		var mat: ShaderMaterial = poly.material
+		
+		# Colors
+		var color_low: Color = Color(0.0, 0.4, 0.4, 0.8) # Dim
+		var color_mid: Color = Color(0.0, 1.0, 1.0, 1.0) # Standard
+		var color_high: Color = Color(0.0, 2.0, 2.0, 1.0) # HDR
+		var color_max: Color = Color(0.0, 4.0, 4.0, 1.0) # Pure HDR Cyan (No Red)
+		
+		# Target Props
+		var target_color: Color
+		var target_width: float
+		var target_fill_alpha: float
+		
+		if new_level <= 1:
+			target_color = color_low
+			target_width = 3.0
+			target_fill_alpha = 0.0
+		elif new_level < 5:
+			# Lerp from Mid to High based on level 2-4
+			var t: float = float(new_level - 1) / 3.0 # 0.0 to 1.0
+			target_color = color_mid.lerp(color_high, t)
+			target_width = 3.0 # Constant width
+			target_fill_alpha = 0.0
+		else: # Level 5+
+			target_color = color_max
+			target_width = 4.0 # Slight bump for max
+			target_fill_alpha = 0.6 # Semi-transparent fill to show outline contrast
 		
 		var tween: Tween = create_tween()
 		tween.set_parallel(true)
-		# Animate Fill
-		tween.tween_property(poly.material, "shader_parameter/fill_level", target_fill, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		# Pop Effect
+		
+		tween.tween_property(mat, "shader_parameter/outline_color", target_color, 0.5)
+		tween.tween_property(mat, "shader_parameter/outline_width", target_width, 0.5)
+		tween.tween_property(mat, "shader_parameter/fill_alpha", target_fill_alpha, 0.5)
+		
+		# Pop Effect on transition
 		tween.tween_property(visual, "scale", Vector2(1.2, 1.2), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tween.chain().tween_property(visual, "scale", Vector2(1.0, 1.0), 0.1)
 
@@ -76,18 +125,9 @@ func _on_core_clicked(_pos: Vector2) -> void:
 # Visual Logic
 # ------------------------------------------------------------------------------
 
-var _visuals: Dictionary = {} # { Vector2i: Node2D }
-
 func _draw_core_visual() -> void:
 	# Draw the Core Circle
-	# In a real scene, this would be a Sprite or separate scene.
-	# For POC, we draw primitives.
 	core_visual.z_index = 10 # Draw on top
-	
-	# We can't draw directly on a Node2D easily without _draw().
-	# Let's add a Polygon2D child to it dynamically or assume it exists.
-	# Better: Use _draw() on the CoreVisual node if it was a custom script, 
-	# but since it's a generic Node2D, we'll attach a Polygon2D.
 	
 	var poly: Polygon2D = Polygon2D.new()
 	var points: PackedVector2Array = PackedVector2Array()
@@ -99,15 +139,26 @@ func _draw_core_visual() -> void:
 	
 	poly.polygon = points
 	poly.color = Color.WHITE
-	# Make it hollow-ish (Visual Spec: Hollow White Circle)
-	# Polygon2D is solid. We need a Line2D or a hollow polygon.
-	# Let's use Line2D for the outline.
 	
 	var line: Line2D = Line2D.new()
 	line.points = points
 	line.add_point(points[0]) # Close loop
-	line.width = 4.0
+	line.width = 6.0
 	line.default_color = Color.WHITE
+	
+	# Energy Flow Shader
+	var shader = preload("res://assets/shaders/energy_flow.gdshader")
+	var material = ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("base_color", Color(4.0, 4.0, 4.0)) # HDR White
+	material.set_shader_parameter("flow_color", Color(0.0, 2.0, 2.0)) # HDR Cyan
+	material.set_shader_parameter("speed", 3.0)
+	material.set_shader_parameter("turbulence", 10.0)
+	line.material = material
+	
+	# REQUIRED: Texture for UV mapping on Line2D
+	line.texture_mode = Line2D.LINE_TEXTURE_TILE
+	line.texture = PlaceholderTexture2D.new()
 	
 	core_visual.add_child(line)
 
@@ -118,14 +169,16 @@ func _spawn_shape_visual(coords: Vector2i, type: String, level: int = 1) -> void
 	# Convert Grid Coords to Local Pos
 	var local_pos: Vector2 = Vector2(coords) * GRID_CELL_SIZE
 	
+	# Register Light Source for Grid Shader
+	_add_light_source(local_pos)
+	
 	# Create Visual
-	# Placeholder: Cyan Square (Polygon2D)
 	var visual: Node2D = Node2D.new()
 	visual.position = local_pos
 	
 	var poly: Polygon2D = Polygon2D.new()
 	poly.name = "Poly" # Name it for finding later
-	var size: float = GRID_CELL_SIZE * 0.8 # Slightly smaller than cell
+	var size: float = GRID_CELL_SIZE * 0.8 
 	var offset: float = size / 2.0
 	poly.polygon = PackedVector2Array([
 		Vector2(-offset, -offset), # Top Left
@@ -133,32 +186,37 @@ func _spawn_shape_visual(coords: Vector2i, type: String, level: int = 1) -> void
 		Vector2(offset, offset),   # Bottom Right
 		Vector2(-offset, offset)   # Bottom Left
 	])
+	# Use Normalized UVs for Shader
 	poly.uv = PackedVector2Array([
 		Vector2(0, 0),
-		Vector2(size, 0),
-		Vector2(size, size),
-		Vector2(0, size)
+		Vector2(1, 0),
+		Vector2(1, 1),
+		Vector2(0, 1)
 	])
 	
 	# Apply Shader
 	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = LIQUID_SHADER
-	material.set_shader_parameter("fill_color", Color.CYAN)
-	material.set_shader_parameter("bg_color", Color(0.0, 0.2, 0.2, 0.5)) # Dark Cyan container
-	material.set_shader_parameter("fill_level", 0.0) # Start Empty
+	material.shader = SHAPE_SHELL_SHADER
+	# Initial params (Level 0/1)
+	material.set_shader_parameter("outline_color", Color(0.0, 0.4, 0.4, 0.5)) # Dim Cyan
+	material.set_shader_parameter("fill_color", Color(0.0, 1.0, 1.0, 1.0)) # Solid Cyan
+	material.set_shader_parameter("outline_width", 2.0)
+	material.set_shader_parameter("fill_alpha", 0.0) # Empty
+	material.set_shader_parameter("size", Vector2(size, size))
 	poly.material = material
 	
 	# REQUIRED: Texture for UV mapping
 	var texture: PlaceholderTexture2D = PlaceholderTexture2D.new()
-	texture.size = Vector2(size, size)
+	texture.size = Vector2(1, 1) # 1x1 Texture ensures 0..1 UVs map 1:1 to Shader UVs
 	poly.texture = texture
 	
 	visual.add_child(poly)
+
 	add_child(visual)
 	_visuals[coords] = visual
 	
-	# Initial fill level is 0.0, animation will be triggered by _on_grid_shape_leveled
-
+	# Update to current level visuals
+	_on_grid_shape_leveled(coords, level, false)
 
 func _draw_existing_grid() -> void:
 	# On load, we need to populate visuals
@@ -170,17 +228,10 @@ func _draw_existing_grid() -> void:
 		_update_connections(coords)
 
 func _update_connections(coords: Vector2i) -> void:
+	# Disabled for visual clarity (v0.2 Refinement)
+	pass
 	# Check adjacent neighbors and draw lines
-	var neighbors: Array[Vector2i] = [
-		coords + Vector2i.UP,
-		coords + Vector2i.DOWN,
-		coords + Vector2i.LEFT,
-		coords + Vector2i.RIGHT
-	]
-	
-	for neighbor in neighbors:
-		if _visuals.has(neighbor):
-			_spawn_connection_line(coords, neighbor)
+	# var neighbors: Array[Vector2i] = [ ...
 
 func _spawn_connection_line(from_coords: Vector2i, to_coords: Vector2i) -> void:
 	# Check if line already exists? For POC, just draw it.
