@@ -1,3 +1,65 @@
-[gd_scene format=3 uid="uid://i45ybjwdgfqt"]
+[gd_scene load_steps=5 format=3 uid="uid://c96s3g6d8f7h9k2l"]
+
+[ext_resource type="Script" path="res://game/scripts/controllers/game_scene_controller.gd" id="1_controller"]
+[ext_resource type="Script" path="res://game/ui/hud_controller.gd" id="2_hud_controller"]
+[ext_resource type="Script" path="res://game/scripts/views/grid_view.gd" id="3_grid_view"]
+[ext_resource type="Script" path="res://game/scripts/vfx/camera_shake.gd" id="4_camera_shake"]
 
 [node name="Main" type="Node2D"]
+script = ExtResource("1_controller")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("4_camera_shake")
+
+[node name="GridView" type="Node2D" parent="."]
+script = ExtResource("3_grid_view")
+
+[node name="CoreVisual" type="Node2D" parent="GridView"]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HUDController" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_hud_controller")
+
+[node name="TopPanel" type="HBoxContainer" parent="HUD/HUDController"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 60.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="SparksLabel" type="Label" parent="HUD/HUDController/TopPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 28
+text = "Sparks: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MessageLog" type="VBoxContainer" parent="HUD/HUDController"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -100.0
+offset_right = 200.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 2
