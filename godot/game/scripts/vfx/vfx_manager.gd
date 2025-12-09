@@ -3,6 +3,18 @@ class_name VFXManagerClass extends Node
 const CORE_CLICK_VFX_PATH = "res://game/scenes/vfx/core_click_vfx.tscn"
 const CURRENCY_FLIGHT_VFX_PATH = "res://game/scenes/vfx/currency_flight_vfx.tscn"
 
+# Constants for VFX properties
+const GRID_UNIT_SIZE: float = 64.0
+const CORE_CLICK_GRID_COLOR: Color = Color.CYAN
+const CORE_CLICK_MAIN_COLOR: Color = Color(4.0, 3.5, 1.0) # HDR Gold for explosion
+const CURRENCY_FLIGHT_TARGET_X_FACTOR: float = 0.5 # Half screen width
+const CURRENCY_FLIGHT_TARGET_Y_POS: float = 60.0 # From top
+const CURRENCY_FLIGHT_COLOR: Color = Color(1.0, 0.8, 0.0, 1.0)
+
+# Constants for SFX parameters
+const SFX_DEFAULT_VOLUME_DB: float = 0.0
+const SFX_DEFAULT_PITCH_SCALE: float = 1.0
+
 var _core_click_vfx_packed_scene: PackedScene
 var _currency_flight_vfx_packed_scene: PackedScene
 
@@ -46,15 +58,15 @@ func _connect_vfx_event_bus_signals() -> void:
 
 func _on_grid_shape_placed(coords: Vector2i, _type: String) -> void:
 	# 1. Visuals: Emit signal for CoreClickVFX to spawn and play
-	var world_pos: Vector2 = Vector2(coords) * 64.0 
-	VFXEventBus.play_core_click_vfx_requested.emit(world_pos, Color.CYAN)
+	var world_pos: Vector2 = Vector2(coords) * GRID_UNIT_SIZE 
+	VFXEventBus.play_core_click_vfx_requested.emit(world_pos, CORE_CLICK_GRID_COLOR)
 	
 	# 2. Audio: Play placement sound
 	play_sfx_2d("sfx_place_shape", world_pos)
 
 func _on_core_clicked(position: Vector2) -> void:
 	# 1. Visuals: Emit signal for CoreClickVFX to spawn and play
-	VFXEventBus.play_core_click_vfx_requested.emit(position, Color(4.0, 3.5, 1.0)) # HDR Gold for explosion
+	VFXEventBus.play_core_click_vfx_requested.emit(position, CORE_CLICK_MAIN_COLOR)
 
 	# 2. Visuals: Emit signal for CurrencyFlightVFX to spawn and play
 	# Convert world position to screen position for CurrencyFlightVFX
@@ -62,9 +74,9 @@ func _on_core_clicked(position: Vector2) -> void:
 	var transform = viewport.canvas_transform
 	var start_screen_pos = transform * position
 	var screen_size = viewport.get_visible_rect().size
-	var target_screen_pos = Vector2(screen_size.x / 2.0, 60.0) # Top Center
+	var target_screen_pos = Vector2(screen_size.x * CURRENCY_FLIGHT_TARGET_X_FACTOR, CURRENCY_FLIGHT_TARGET_Y_POS) # Top Center
 	
-	VFXEventBus.play_currency_flight_vfx_requested.emit(start_screen_pos, target_screen_pos, Color(1.0, 0.8, 0.0, 1.0))
+	VFXEventBus.play_currency_flight_vfx_requested.emit(start_screen_pos, target_screen_pos, CURRENCY_FLIGHT_COLOR)
 	
 	# 3. Audio: Play click sound
 	play_sfx_2d("sfx_core_clicked", position) # Changed from "sfx_core_click" to "sfx_core_clicked" for consistency.
@@ -130,4 +142,4 @@ func play_sfx_2d(sound_id: String, pos_2d: Vector2) -> void:
 	
 	# Emit to CoreEventBus (Infrastructure)
 	# Signature: sfx_play_requested(sound_id, position_3d, volume_db, pitch_scale)
-	CoreEventBus.sfx_play_requested.emit(sound_id, pos_3d, 0.0, 1.0)
+	CoreEventBus.sfx_play_requested.emit(sound_id, pos_3d, SFX_DEFAULT_VOLUME_DB, SFX_DEFAULT_PITCH_SCALE)

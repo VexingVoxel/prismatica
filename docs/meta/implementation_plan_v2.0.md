@@ -113,20 +113,13 @@
 
 ---
 
-## Phase 6: Refactoring & Modularity (v2.0) [PENDING]
+## Phase 6: Refactoring & Modularity (v2.0) [COMPLETED]
 *Goal: Enhance modularity, maintainability, and scalability of the codebase, leaning into procedural generation where appropriate.*
 
 19. **Extract Core Reactor Scene:** [COMPLETED]
-    *   Created `godot/game/scenes/visuals/core_reactor.tscn`. This scene contains a simple `Node2D` with an attached script (`core_reactor.gd`).
-    *   The `core_reactor.gd` script **procedurally generates** the Core's visual components (floor, rings, orb, animations) at runtime.
-    *   Replaced procedural construction in `GridView._draw_core_visual` with instancing this self-contained procedural generator scene. `GridView` now connects to its `light_source_registered` signal to call `_add_light_source`.
-
 20. **Extract Shape Visual Scene:** [COMPLETED]
-    *   Created `godot/game/scenes/visuals/shape_visual.tscn`. This scene contains a simple `Node2D` with an attached script (`shape_visual.gd`).
-    *   The `shape_visual.gd` script **procedurally generates** its own `Polygon2D` geometry, applies `shape_shell.gdshader`, and manages level-based visual updates.
-    *   Implemented object pooling in `GridView` for these procedural shape visual instances. `GridView` now connects to their `light_source_registered` and `light_source_unregistered` signals.
 
-21. **Refactor HUD UI:** [PENDING]
+21. **Refactor HUD UI:** [COMPLETED]
     *   Convert procedural UI creation in `HUDController.gd` (e.g., `_create_overload_ui`, `_create_prestige_ui`) to declarative scene definition within `godot/game/scenes/hud.tscn`.
     *   **In `hud.tscn`, define the following nodes (under `HUDController`):**
         *   `TopPanel` (HBoxContainer)
@@ -143,7 +136,7 @@
         *   `@onready var prestige_button: Button = %PrestigeButton`.
     *   Remove procedural UI creation functions (`_create_overload_ui`, `_create_prestige_ui`) from `HUDController.gd`.
 
-22. **Centralize VFX Spawning:** [PENDING]
+22. **Centralize VFX Spawning:** [COMPLETED]
     *   Refine `VFXManager.gd` to use reusable, dedicated VFX *scenes*.
     *   **Define `core_click_vfx.tscn`:**
         *   Root: `Node2D` with script `core_click_vfx.gd`.
@@ -158,7 +151,7 @@
         *   Replace direct particle/sprite creation with `preload()` and `instance()` calls for these new VFX scenes.
         *   Call their respective `play()` methods.
 
-23. **Code Cleanup:** [PENDING]
+23. **Code Cleanup:** [COMPLETED]
     *   Address any remaining hardcoded "magic numbers" in scripts by converting them to constants or `@export` variables.
     *   Remove unused variables (e.g., `_light_template` in `GridView`).
     *   Remove commented-out or unused functions (e.g., `_spawn_connection_line` in `GridView`).

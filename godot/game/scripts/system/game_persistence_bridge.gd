@@ -12,6 +12,7 @@ class_name GamePersistenceBridgeClass extends Node
 
 const AUTO_SAVE_INTERVAL: float = 60.0 # Save every 60 seconds
 const GAME_SAVE_SLOT: String = "game_slot_0"
+const DEFAULT_BIGNUM_STRING_VALUE: String = "0e0"
 
 # ------------------------------------------------------------------------------
 # State
@@ -56,12 +57,10 @@ func save_game_state(slot_id: String) -> void:
 	SaveManager.save_game(slot_id, game_data)
 	
 	GameplayEventBus.resource_changed.emit("feedback_message", BigNumber.new(0,0), "Game Saved!")
-	print("Game saved to slot: %s" % slot_id)
 
 ## Loads game state from the specified slot.
 func _load_game_state() -> void:
 	if not SaveManager.save_exists(GAME_SAVE_SLOT):
-		print("No save game found for slot: %s" % GAME_SAVE_SLOT)
 		return
 		
 	var loaded_data: Dictionary = SaveManager.load_game(GAME_SAVE_SLOT)
@@ -70,14 +69,13 @@ func _load_game_state() -> void:
 		return
 	
 	# Deserialize BigNumbers
-	GameCore.set_sparks(_bignum_from_string(loaded_data.get("sparks", "0e0")))
-	GameCore.set_light(_bignum_from_string(loaded_data.get("light", "0e0")))
+	GameCore.set_sparks(_bignum_from_string(loaded_data.get("sparks", DEFAULT_BIGNUM_STRING_VALUE)))
+	GameCore.set_light(_bignum_from_string(loaded_data.get("light", DEFAULT_BIGNUM_STRING_VALUE)))
 	
 	# Deserialize GridDataResource
 	GameCore.set_grid_data(_deserialize_grid_cells(loaded_data.get("grid_cells", {})))
 	
 	GameplayEventBus.resource_changed.emit("feedback_message", BigNumber.new(0,0), "Game Loaded!")
-	print("Game loaded from slot: %s" % GAME_SAVE_SLOT)
 
 # ------------------------------------------------------------------------------
 # Internal Helpers (Serialization)

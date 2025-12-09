@@ -4,8 +4,6 @@ class_name GridViewClass extends Node2D
 ##
 ## Responsibility: Manages the visual representation of the grid.
 ## Listens to GameplayEventBus to spawn/update/animate shape nodes.
-##
-## Note: In a real implementation, this would handle object pooling for shapes.
 
 # ------------------------------------------------------------------------------
 # Constants
@@ -15,13 +13,16 @@ const GRID_CELL_SIZE: int = 64
 const SHAPE_SHELL_SHADER = preload("res://assets/shaders/shape_shell.gdshader")
 const DATA_FLOW_SHADER = preload("res://assets/shaders/data_flow.gdshader")
 const SHAPE_VISUAL_SCENE = preload("res://game/scenes/visuals/shape_visual.tscn")
-const CORE_REACTOR_SCENE = preload("res://game/scenes/visuals/core_reactor.tscn") # Added for instancing
+const CORE_REACTOR_SCENE = preload("res://game/scenes/visuals/core_reactor.tscn")
+
+const LIGHT_RADIUS: float = 250.0
+const LIGHT_FALLOFF: float = 50.0
 
 # ------------------------------------------------------------------------------
 # Nodes
 # ------------------------------------------------------------------------------
 
-@onready var core_visual: Node2D = $CoreVisual # We'll need to create this in the scene
+@onready var core_visual: Node2D = $CoreVisual # The container for the Core Reactor visual
 
 # ------------------------------------------------------------------------------
 # Initialization
@@ -62,12 +63,16 @@ func _update_shader_light_params() -> void:
 		var mat: ShaderMaterial = grid_lines.material
 		mat.set_shader_parameter("light_count", positions_array.size())
 		mat.set_shader_parameter("light_sources", positions_array)
+		mat.set_shader_parameter("light_radius", LIGHT_RADIUS)
+		mat.set_shader_parameter("light_falloff", LIGHT_FALLOFF)
 		
 	# Update Floor Shader
 	if floor_rect and floor_rect.material:
 		var mat: ShaderMaterial = floor_rect.material
 		mat.set_shader_parameter("light_count", positions_array.size())
 		mat.set_shader_parameter("light_sources", positions_array)
+		mat.set_shader_parameter("light_radius", LIGHT_RADIUS)
+		mat.set_shader_parameter("light_falloff", LIGHT_FALLOFF)
 
 # ------------------------------------------------------------------------------
 # Object Pooling
@@ -105,7 +110,6 @@ func _on_grid_shape_placed(coords: Vector2i, type: String) -> void:
 	_visuals[coords] = visual
 	
 	_on_grid_shape_leveled(coords, 1, false) # Animate to Level 1 fill
-	_update_connections(coords)
 
 func _on_grid_shape_leveled(coords: Vector2i, new_level: int, _is_max: bool) -> void:
 	if not _visuals.has(coords):
@@ -157,14 +161,3 @@ func _draw_existing_grid() -> void:
 		_visuals[coords] = visual # Store it
 		
 		_on_grid_shape_leveled(coords, cell.get("level", 1), false) # Animate to current level fill
-		_update_connections(coords)
-
-func _update_connections(coords: Vector2i) -> void:
-	# Disabled for visual clarity (v0.2 Refinement)
-	pass
-	# Check adjacent neighbors and draw lines
-	# var neighbors: Array[Vector2i] = [ ...
-
-func _spawn_connection_line(from_coords: Vector2i, to_coords: Vector2i) -> void:
-	# Removed in a previous step, kept for historical context if needed.
-	pass

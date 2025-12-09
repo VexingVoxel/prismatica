@@ -9,6 +9,22 @@ class_name HUDControllerClass extends Control
 ## - Listens to CoreEventBus.toast_notification_requested -> Spawns transient info popups.
 
 # ------------------------------------------------------------------------------
+# Constants
+# ------------------------------------------------------------------------------
+
+const OVERLOAD_ACTIVE_COLOR: Color = Color.RED
+const OVERLOAD_COOLDOWN_COLOR: Color = Color.GRAY
+const OVERLOAD_READY_COLOR: Color = Color.WHITE
+
+const TOAST_FADE_DURATION: float = 2.0
+const TOAST_DELAY_BEFORE_FADE: float = 1.0
+const TOAST_INFO_COLOR: Color = Color.WHITE
+const TOAST_WARNING_COLOR: Color = Color.YELLOW
+const TOAST_ERROR_COLOR: Color = Color.RED
+
+const SPARKS_LABEL_PREFIX: String = "Sparks: "
+
+# ------------------------------------------------------------------------------
 # Nodes
 # ------------------------------------------------------------------------------
 
@@ -51,18 +67,18 @@ func _update_overload_ui() -> void:
 		overload_button.text = "ACTIVE!"
 		overload_progress_bar.max_value = state.duration
 		overload_progress_bar.value = state.time_left
-		overload_progress_bar.modulate = Color.RED # Active color
+		overload_progress_bar.modulate = OVERLOAD_ACTIVE_COLOR # Active color
 	elif state.cooldown_left > 0.0:
 		overload_button.disabled = true
 		overload_button.text = "Cooldown"
 		overload_progress_bar.max_value = state.cooldown_max
 		overload_progress_bar.value = state.cooldown_max - state.cooldown_left # Fill up
-		overload_progress_bar.modulate = Color.GRAY # Cooldown color
+		overload_progress_bar.modulate = OVERLOAD_COOLDOWN_COLOR # Cooldown color
 	else:
 		overload_button.disabled = false
 		overload_button.text = "OVERLOAD"
 		overload_progress_bar.value = 0
-		overload_progress_bar.modulate = Color.WHITE
+		overload_progress_bar.modulate = OVERLOAD_READY_COLOR
 
 func _on_overload_pressed() -> void:
 	GameCore.activate_overload()
@@ -96,7 +112,7 @@ func _on_toast_notification_requested(title: String, message: String, type: Core
 # ------------------------------------------------------------------------------
 
 func _update_sparks_display(sparks: BigNumber) -> void:
-	sparks_label.text = "Sparks: %s" % sparks.to_formatted_string()
+	sparks_label.text = SPARKS_LABEL_PREFIX + sparks.to_formatted_string()
 
 func _display_toast(message: String, type: CoreEventBus.ToastType = CoreEventBus.ToastType.INFO) -> void:
 	var toast_label: Label = Label.new()
@@ -108,12 +124,12 @@ func _display_toast(message: String, type: CoreEventBus.ToastType = CoreEventBus
 	
 	# Fade out and remove after a short delay
 	var tween: Tween = get_tree().create_tween()
-	tween.tween_property(toast_label, "modulate", Color(1, 1, 1, 0), 2.0).set_delay(1.0)
+	tween.tween_property(toast_label, "modulate", Color(1, 1, 1, 0), TOAST_FADE_DURATION).set_delay(TOAST_DELAY_BEFORE_FADE)
 	tween.tween_callback(toast_label.queue_free)
 
 func _get_color_for_toast_type(type: CoreEventBus.ToastType) -> Color:
 	match type:
-		CoreEventBus.ToastType.INFO: return Color.WHITE
-		CoreEventBus.ToastType.WARNING: return Color.YELLOW
-		CoreEventBus.ToastType.ERROR: return Color.RED
-	return Color.WHITE
+		CoreEventBus.ToastType.INFO: return TOAST_INFO_COLOR
+		CoreEventBus.ToastType.WARNING: return TOAST_WARNING_COLOR
+		CoreEventBus.ToastType.ERROR: return TOAST_ERROR_COLOR
+	return TOAST_INFO_COLOR

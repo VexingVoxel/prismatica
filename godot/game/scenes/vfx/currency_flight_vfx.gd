@@ -2,6 +2,23 @@ class_name CurrencyFlightVFX extends CanvasLayer
 
 signal finished
 
+# ------------------------------------------------------------------------------
+# Constants
+# ------------------------------------------------------------------------------
+
+const SPARK_TEXTURE_SIZE: int = 16
+const SPARK_TEXTURE_GRADIENT_END_COLOR: Color = Color(1, 1, 1, 0) # White transparent
+
+const TRAIL_COLOR_MULTIPLIER: float = 0.8
+
+const FLIGHT_DURATION_MIN: float = 0.8
+const FLIGHT_DURATION_MAX: float = 1.2
+const BURST_SPREAD_MAGNITUDE: float = 32.0
+const BURST_OUT_DURATION: float = 0.2
+const FLIGHT_DELAY: float = 0.05
+const SHRINK_DURATION: float = 0.2
+const SHRINK_DELAY_OFFSET: float = 0.2
+
 var _spark_texture: GradientTexture2D
 
 func _init() -> void:
@@ -13,10 +30,10 @@ func _ready() -> void:
 	_spark_texture.fill = GradientTexture2D.FILL_RADIAL
 	_spark_texture.fill_from = Vector2(0.5, 0.5)
 	_spark_texture.fill_to = Vector2(0.5, 0.0)
-	_spark_texture.width = 16
-	_spark_texture.height = 16
+	_spark_texture.width = SPARK_TEXTURE_SIZE
+	_spark_texture.height = SPARK_TEXTURE_SIZE
 	var grad = Gradient.new()
-	grad.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0)])
+	grad.colors = PackedColorArray([Color.WHITE, SPARK_TEXTURE_GRADIENT_END_COLOR])
 	_spark_texture.gradient = grad
 
 	var sprite: Sprite2D = $Spark
@@ -40,22 +57,22 @@ func play(start_screen_pos: Vector2, target_screen_pos: Vector2, color: Color) -
 
 	sprite.position = start_screen_pos
 	sprite.modulate = color
-	trail.color = color * 0.8 # Slightly darker trail
+	trail.color = color * TRAIL_COLOR_MULTIPLIER
 	trail.emitting = true
 	
-	var duration = randf_range(0.8, 1.2)
-	var spread = Vector2(randf_range(-32, 32), randf_range(-32, 32))
+	var duration = randf_range(FLIGHT_DURATION_MIN, FLIGHT_DURATION_MAX)
+	var spread = Vector2(randf_range(-BURST_SPREAD_MAGNITUDE, BURST_SPREAD_MAGNITUDE), randf_range(-BURST_SPREAD_MAGNITUDE, BURST_SPREAD_MAGNITUDE))
 	
 	var tween = create_tween()
 	
 	# Burst out
-	tween.tween_property(sprite, "position", start_screen_pos + spread, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(sprite, "position", start_screen_pos + spread, BURST_OUT_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	
 	# Fly to target
-	tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(0.05)
+	tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(FLIGHT_DELAY)
 	
 	# Shrink (parallel)
-	tween.parallel().tween_property(sprite, "scale", Vector2(0,0), 0.2).set_delay(duration - 0.2)
+	tween.parallel().tween_property(sprite, "scale", Vector2(0,0), SHRINK_DURATION).set_delay(duration - SHRINK_DELAY_OFFSET)
 	
 	await tween.finished
 	finished.emit()

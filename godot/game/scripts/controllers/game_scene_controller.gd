@@ -10,6 +10,9 @@ class_name GameSceneControllerClass extends Node2D
 # ------------------------------------------------------------------------------
 
 const GRID_CELL_SIZE: int = 64
+const CORE_CLICK_RADIUS: float = 64.0 # Radius for detecting a click on the Core
+const CORE_EXCLUSION_RADIUS: int = 1 # 3x3 area around the core (0,0) where shapes cannot be placed
+const SHAPE_PLACEMENT_COST: int = 10 # Base cost in Sparks for placing a square shape
 
 # ------------------------------------------------------------------------------
 # State
@@ -49,8 +52,8 @@ func _handle_left_click(screen_pos: Vector2) -> void:
 			# Core is at World (0,0).
 			var world_pos: Vector2 = get_global_mouse_position()
 			
-			# Simple distance check for Core Click (Radius 64)
-			if world_pos.length() < 64.0:
+			# Simple distance check for Core Click
+			if world_pos.length() < CORE_CLICK_RADIUS:
 				GameCore.click_core(world_pos)
 			else:
 				# Check if clicked on a grid shape -> Upgrade
@@ -71,7 +74,7 @@ func _handle_right_click() -> void:
 		GameplayEventBus.resource_changed.emit("feedback_message", BigNumber.new(0,0), "Placement Cancelled")
 	else:
 		# Debug: Enable placement mode for "Square" on right click for testing
-		start_placement_mode("Square")
+		start_placement_mode("Square") # Keeping this for quick testing for now, can be removed later
 
 # ------------------------------------------------------------------------------
 # Logic
@@ -91,21 +94,16 @@ func _attempt_place_shape(_screen_pos: Vector2) -> void:
 	var coords: Vector2i = Vector2i(grid_x, grid_y)
 	
 	# Prevent placing in the 3x3 area around the Core (0,0)
-	if abs(coords.x) <= 1 and abs(coords.y) <= 1:
+	if abs(coords.x) <= CORE_EXCLUSION_RADIUS and abs(coords.y) <= CORE_EXCLUSION_RADIUS:
 		GameplayEventBus.resource_changed.emit("feedback_message", BigNumber.new(0,0), "Cannot place so close to the Core!")
 		return
 	
-	# Cost Logic (Placeholder)
-	var cost: BigNumber = BigNumber.from_int(10) # 10 Sparks per square
+	# Cost Logic
+	var cost: BigNumber = BigNumber.from_int(SHAPE_PLACEMENT_COST)
 	
 	var success: bool = GameCore.try_place_shape(coords, _selected_shape_type, cost)
 	if success:
-		# Stay in placement mode? Or revert to IDLE?
-		# v0.5.3 Click-to-Place usually implies one-off, or persistent with Shift.
-		# Let's go back to IDLE for safety in POC.
-		# _set_input_state(InputState.IDLE) 
-		# actually, continuous placement is nicer for testing
-		pass
+		pass # Continuous placement is nicer for testing
 
 func _set_input_state(new_state: InputState) -> void:
 	_current_state = new_state

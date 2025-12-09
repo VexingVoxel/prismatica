@@ -15,6 +15,10 @@ const TICK_RATE: float = 0.1 # 10Hz Logic Tick
 const OVERLOAD_DURATION: float = 5.0
 const OVERLOAD_COOLDOWN: float = 15.0
 const OVERLOAD_MULTIPLIER: float = 2.0
+const PRESTIGE_BONUS_PER_LIGHT: float = 0.1 # Example: +10% production per Light
+const PRESTIGE_THRESHOLD_LIFETIME_SPARKS: int = 1000 # Lifetime sparks needed to gain 1 Light (placeholder)
+const CLICK_BASE_VALUE: int = 1
+const UPGRADE_COST_SCALING_FACTOR: int = 50 # Base cost per level for upgrading a shape
 
 # ------------------------------------------------------------------------------
 # State
@@ -69,7 +73,7 @@ func _on_tick() -> void:
 	
 	# Apply Prestige Bonus (+10% per Light)
 	if not _light.is_zero():
-		var prestige_mult: BigNumber = BigNumber.from_float(1.0).plus(_light.multiply(BigNumber.from_float(0.1)))
+		var prestige_mult: BigNumber = BigNumber.from_float(1.0).plus(_light.multiply(BigNumber.from_float(PRESTIGE_BONUS_PER_LIGHT)))
 		passive_income = passive_income.multiply(prestige_mult)
 	
 	if _is_overloaded:
@@ -109,7 +113,7 @@ func get_prestige_potential() -> BigNumber:
 	# Simple placeholder logic: 1 Light for every 1000 lifetime sparks
 	# In real implementation, use a proper log/sqrt formula.
 	# For POC: plain division.
-	var threshold: BigNumber = BigNumber.from_int(1000)
+	var threshold: BigNumber = BigNumber.from_int(PRESTIGE_THRESHOLD_LIFETIME_SPARKS)
 	if _lifetime_sparks.is_less_than(threshold):
 		return BigNumber.new(0.0, 0)
 	
@@ -192,7 +196,7 @@ func get_overload_state() -> Dictionary:
 ## Called by Input Controller when player clicks the Core.
 func click_core(screen_pos: Vector2) -> void:
 	# 1. Logic: Add Resources
-	var click_val: BigNumber = BigNumber.from_int(1)
+	var click_val: BigNumber = BigNumber.from_int(CLICK_BASE_VALUE)
 	
 	if _is_overloaded:
 		click_val = click_val.multiply(BigNumber.from_float(OVERLOAD_MULTIPLIER))
@@ -235,7 +239,7 @@ func try_upgrade_shape(coords: Vector2i) -> bool:
 		
 	var cell: Dictionary = _grid_data_resource.get_cell_data(coords)
 	var current_level: int = cell.get("level", 1)
-	var cost: BigNumber = BigNumber.from_int(current_level * 50) # Simple linear cost scaling
+	var cost: BigNumber = BigNumber.from_int(current_level * UPGRADE_COST_SCALING_FACTOR) # Simple linear cost scaling
 	
 	if cost.is_greater_than(_sparks):
 		GameplayEventBus.resource_changed.emit("feedback_message", BigNumber.new(0,0), "Not enough Sparks to upgrade!")
@@ -252,7 +256,6 @@ func try_upgrade_shape(coords: Vector2i) -> bool:
 		)
 		# Emit signal for Visuals (Liquid Fill)
 		GameplayEventBus.emit_signal("grid_shape_leveled", coords, current_level + 1, false) 
-		# We need to add this signal to GameplayEventBus definition if not present
 		
 		return true
 		
