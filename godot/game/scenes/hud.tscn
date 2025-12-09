@@ -49,3 +49,39 @@ offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
 alignment = 2
+
+[node name="BottomPanel" type="HBoxContainer" parent="HUDController"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -60.0
+offset_bottom = -20.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="OverloadButton" type="Button" parent="HUDController/BottomPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "OVERLOAD"
+
+[node name="OverloadProgressBar" type="ProgressBar" parent="HUDController/BottomPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 30)
+layout_mode = 2
+show_percentage = false
+
+[node name="PrestigeButton" type="Button" parent="HUDController"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 60.0
+grow_horizontal = 0
+text = "ASCEND (Reset for Light)"
+visible = false

@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://cd184wlcdg2pu"]
+
+[ext_resource type="Script" uid="uid://cnfkpqj8go5eu" path="res://game/scenes/vfx/currency_flight_vfx.gd" id="1_script"]
+
+[node name="CurrencyFlightVFX" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_script")
+
+[node name="Spark" type="Sprite2D" parent="."]
+
+[node name="Trail" type="CPUParticles2D" parent="Spark"]
+emitting = false
+amount = 16
+lifetime = 0.5
+one_shot = false
+explosiveness = 0.0 # Emit continuously
+local_coords = false # Leave trail behind
+scale_amount_min = 0.2
+scale_amount_max = 0.5
+color = Color(1, 0.8, 0.2, 1) # Gold Sizzle, overridden by play()
+gravity = Vector2(0, 100) # Example gravity, adjust as needed

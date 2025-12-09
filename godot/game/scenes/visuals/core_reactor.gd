@@ -4,7 +4,6 @@ signal light_source_registered(position: Vector2)
 
 func _ready() -> void:
 	_draw_core_reactor()
-	print("CoreReactor: Emitting signal with global_position:", global_position)
 	emit_signal("light_source_registered", global_position)
 
 func _draw_core_reactor() -> void:

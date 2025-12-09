@@ -21,8 +21,6 @@ glow_bloom = 0.3
 glow_blend_mode = 0
 glow_hdr_threshold = 0.8
 glow_hdr_scale = 1.2
-tonemap_mode = 0
-auto_exposure_enabled = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_plasma"]
 shader = ExtResource("5_plasma")

@@ -25,16 +25,5 @@ AudioManager="*res://_core/autoload/audio_manager.gd"
 GameplayEventBus="*res://game/scripts/autoload/gameplay_event_bus.gd"
 GameCore="*res://game/scripts/autoload/game_core.gd"
 GamePersistenceBridge="*res://game/scripts/system/game_persistence_bridge.gd"
+VFXEventBus="*res://game/scripts/autoload/vfx_event_bus.gd"
 VFXManager="*res://game/scripts/vfx/vfx_manager.gd"
-
-[display]
-
-window/subwindows/embed_subwindows=false
-
-[dotnet]
-
-project/assembly_name="Gemini Project"
-
-[rendering]
-
-viewport/hdr_2d=true

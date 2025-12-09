@@ -47,18 +47,15 @@ func _connect_signals() -> void:
 	# GameplayEventBus.resource_changed.connect(...) for updating visual level if needed
 
 func _add_light_source(position: Vector2, unique_id: Variant) -> void:
-	print("GridView: _add_light_source called for ID:", unique_id, " at position:", position)
 	_light_source_positions[unique_id] = position
 	_update_shader_light_params()
 
 func _remove_light_source(unique_id: Variant) -> void:
-	print("GridView: _remove_light_source called for ID:", unique_id)
 	_light_source_positions.erase(unique_id)
 	_update_shader_light_params()
 
 func _update_shader_light_params() -> void:
 	var positions_array = PackedVector2Array(_light_source_positions.values())
-	print("GridView: _update_shader_light_params: Sending light count:", positions_array.size(), " Current lights:", _light_source_positions)
 	
 	# Update Grid Lines Shader
 	if grid_lines and grid_lines.material:
@@ -119,19 +116,17 @@ func _on_grid_shape_leveled(coords: Vector2i, new_level: int, _is_max: bool) -> 
 
 func _on_core_clicked(_pos: Vector2) -> void:
 	# Simple tween for the circle pulse (Visceral Check)
-	# Core Reactor now handles its own internal pulse
-	pass # Core Reactor handles its own pulse. Core visual scaling is removed.
+	var tween: Tween = create_tween()
+	tween.tween_property(core_visual, "scale", Vector2(1.1, 1.1), 0.05).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(core_visual, "scale", Vector2(1.0, 1.0), 0.1).set_trans(Tween.TRANS_SINE)
 
 func _on_core_reactor_light_registered(position: Vector2) -> void:
-	print("GridView: CoreReactor signal received for position:", position)
 	_add_light_source(position, "core") # Use "core" as unique ID for the Core Reactor
 
 func _on_shape_visual_light_registered(position: Vector2, coords: Vector2i) -> void:
-	print("GridView: ShapeVisual signal received for position:", position, " coords:", coords)
 	_add_light_source(position, coords)
 
 func _on_shape_visual_light_unregistered(coords: Vector2i) -> void:
-	print("GridView: ShapeVisual unregistered for coords:", coords)
 	_remove_light_source(coords)
 
 # ------------------------------------------------------------------------------

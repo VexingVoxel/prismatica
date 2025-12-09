@@ -1,142 +1,121 @@
 class_name VFXManagerClass extends Node
 
-var _spark_texture: GradientTexture2D
+const CORE_CLICK_VFX_PATH = "res://game/scenes/vfx/core_click_vfx.tscn"
+const CURRENCY_FLIGHT_VFX_PATH = "res://game/scenes/vfx/currency_flight_vfx.tscn"
+
+var _core_click_vfx_packed_scene: PackedScene
+var _currency_flight_vfx_packed_scene: PackedScene
+
+# Dedicated containers for different types of VFX
+@onready var _world_vfx_container: Node2D = get_tree().root.get_node("Main") # Assuming Main scene is direct child of root, or adjust path
+@onready var _ui_vfx_container: CanvasLayer = get_tree().root.get_node("Main").get_node("HUD") # Assuming HUD has an FXLayer for UI VFX
 
 # ------------------------------------------------------------------------------
 # Initialization
 # ------------------------------------------------------------------------------
 
 func _ready() -> void:
-	_init_resources()
+	_core_click_vfx_packed_scene = load(CORE_CLICK_VFX_PATH)
+	if not _core_click_vfx_packed_scene:
+		printerr("ERROR: Failed to load CoreClickVFX PackedScene at %s" % CORE_CLICK_VFX_PATH)
+	
+	_currency_flight_vfx_packed_scene = load(CURRENCY_FLIGHT_VFX_PATH)
+	if not _currency_flight_vfx_packed_scene:
+		printerr("ERROR: Failed to load CurrencyFlightVFX PackedScene at %s" % CURRENCY_FLIGHT_VFX_PATH)
+	
+	if not is_instance_valid(_world_vfx_container):
+		printerr("ERROR: _world_vfx_container is not valid! Check path: /root/Main")
+	if not is_instance_valid(_ui_vfx_container):
+		printerr("ERROR: _ui_vfx_container is not valid! Check path: /root/Main/HUD")
+	
 	_connect_signals()
-
-func _init_resources() -> void:
-	_spark_texture = GradientTexture2D.new()
-	_spark_texture.fill = GradientTexture2D.FILL_RADIAL
-	_spark_texture.fill_from = Vector2(0.5, 0.5)
-	_spark_texture.fill_to = Vector2(0.5, 0.0)
-	_spark_texture.width = 16
-	_spark_texture.height = 16
-	var grad = Gradient.new()
-	grad.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0)])
-	_spark_texture.gradient = grad
+	_connect_vfx_event_bus_signals()
 
 func _connect_signals() -> void:
 	# Listen for gameplay events that need audio feedback
 	GameplayEventBus.grid_shape_placed.connect(_on_grid_shape_placed)
 	GameplayEventBus.core_clicked.connect(_on_core_clicked)
 
+func _connect_vfx_event_bus_signals() -> void:
+	VFXEventBus.play_core_click_vfx_requested.connect(_on_play_core_click_vfx_requested)
+	VFXEventBus.play_currency_flight_vfx_requested.connect(_on_play_currency_flight_vfx_requested)
+
 # ------------------------------------------------------------------------------
-# Event Handlers
+# Event Handlers (Now just emit signals on VFXEventBus)
 # ------------------------------------------------------------------------------
 
 func _on_grid_shape_placed(coords: Vector2i, _type: String) -> void:
-	# 1. Visuals: Spawn particle effect
+	# 1. Visuals: Emit signal for CoreClickVFX to spawn and play
 	var world_pos: Vector2 = Vector2(coords) * 64.0 
-	_spawn_particles(world_pos, Color.CYAN)
+	VFXEventBus.play_core_click_vfx_requested.emit(world_pos, Color.CYAN)
 	
 	# 2. Audio: Play placement sound
 	play_sfx_2d("sfx_place_shape", world_pos)
 
 func _on_core_clicked(position: Vector2) -> void:
-	# 1. Visuals: Spawn click burst
-	_spawn_particles(position, Color(4.0, 3.5, 1.0), 16, 0.5, 200.0)
-	# 2. Visuals: Fly to HUD (Single significant spark)
-	spawn_currency_flight(position, 1)
-	
-	# 3. Audio: Play click sound
-	play_sfx_2d("sfx_core_click", position)
+	# 1. Visuals: Emit signal for CoreClickVFX to spawn and play
+	VFXEventBus.play_core_click_vfx_requested.emit(position, Color(4.0, 3.5, 1.0)) # HDR Gold for explosion
 
-# ...
-
-func spawn_currency_flight(start_pos: Vector2, amount: int) -> void:
+	# 2. Visuals: Emit signal for CurrencyFlightVFX to spawn and play
+	# Convert world position to screen position for CurrencyFlightVFX
 	var viewport = get_viewport()
-	var screen_size = viewport.get_visible_rect().size
-	
-	# 1. Calculate Positions in Screen Space (HUD)
 	var transform = viewport.canvas_transform
-	var start_screen_pos = transform * start_pos
+	var start_screen_pos = transform * position
+	var screen_size = viewport.get_visible_rect().size
 	var target_screen_pos = Vector2(screen_size.x / 2.0, 60.0) # Top Center
 	
-	# 2. Find a valid parent (CanvasLayer)
-	# Try to find the HUD layer, or create a temporary one if needed
-	# For simplicity in this POC, we'll create a temporary CanvasLayer for this burst
-	# (Optimisation: Pool this layer)
-	var vfx_layer = CanvasLayer.new()
-	vfx_layer.layer = 100 # High layer
-	get_tree().current_scene.add_child(vfx_layer)
+	VFXEventBus.play_currency_flight_vfx_requested.emit(start_screen_pos, target_screen_pos, Color(1.0, 0.8, 0.0, 1.0))
 	
-	# Auto-cleanup layer after animation
-	var total_duration = 1.5
-	get_tree().create_timer(total_duration).timeout.connect(vfx_layer.queue_free)
-	
-	for i in range(amount):
-		var sprite = Sprite2D.new()
-		sprite.texture = _spark_texture 
-		sprite.scale = Vector2(1.0, 1.0) # 16px
-		sprite.position = start_screen_pos
-		# No Z-Index needed, Layer 100 handles it
-		vfx_layer.add_child(sprite)
-		
-		# Add Sizzle Trail
-		var trail = CPUParticles2D.new()
-		trail.amount = 16
-		trail.lifetime = 0.5
-		trail.local_coords = false
-		trail.texture = _spark_texture
-		trail.scale_amount_min = 0.2
-		trail.scale_amount_max = 0.5
-		trail.color = Color(1.0, 0.8, 0.2) # Gold Sizzle
-		trail.gravity = Vector2(0, 100)
-		trail.emitting = true
-		sprite.add_child(trail)
-		
-		var duration = randf_range(0.8, 1.2)
-		var spread = Vector2(randf_range(-32, 32), randf_range(-32, 32))
-		
-		var tween = vfx_layer.create_tween() # Bound to layer
-		
-		# Burst out (Screen Space spread)
-		tween.tween_property(sprite, "position", start_screen_pos + spread, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		
-		# Fly to target
-		tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(0.05)
-		
-		# No shrink, just vanish on queue_free (persists until layer cleanup)
-		
+	# 3. Audio: Play click sound
+	play_sfx_2d("sfx_core_clicked", position) # Changed from "sfx_core_click" to "sfx_core_clicked" for consistency.
+
 # ------------------------------------------------------------------------------
-# Internal Helpers
+# New Instance Methods for VFX Spawning (Orchestrated by VFXManager)
 # ------------------------------------------------------------------------------
 
-func _spawn_particles(pos: Vector2, color: Color, amount: int = 10, lifetime: float = 0.5, speed: float = 100.0) -> void:
-	var parts: CPUParticles2D = CPUParticles2D.new()
-	parts.position = pos
-	parts.amount = amount
-	parts.lifetime = lifetime
-	parts.one_shot = true
-	parts.explosiveness = 1.0
-	parts.spread = 180.0
-	parts.gravity = Vector2(0, 0)
-	parts.initial_velocity_min = speed * 0.5
-	parts.initial_velocity_max = speed
-	parts.scale_amount_min = 2.0
-	parts.scale_amount_max = 4.0
-	parts.color = color
-	parts.z_index = 200 # Render above everything
+func _on_play_core_click_vfx_requested(position: Vector2, color: Color) -> void:
+	if not _core_click_vfx_packed_scene:
+		printerr("ERROR: CoreClickVFX PackedScene not loaded!")
+		return
+
+	var vfx_instance: CoreClickVFX = _core_click_vfx_packed_scene.instantiate() as CoreClickVFX
+	if not vfx_instance:
+		printerr("ERROR: Failed to instance CoreClickVFX!")
+		return
 	
-	# Add to scene tree - ideally to a specific layer, but we'll add to self (VFXManager is a Node)
-	# Wait, VFXManager is an Autoload (Node). If we add child to it, where does it render?
-	# Autoloads are at the root. It should render in the overlay or behind depending on tree order.
-	# Better to add to the *Current Scene* or a specific VFX layer.
-	# For POC, let's try adding to get_tree().current_scene
-	if get_tree().current_scene:
-		get_tree().current_scene.add_child(parts)
-		parts.emitting = true
-		
-		# Auto-cleanup
-		await get_tree().create_timer(lifetime + 0.1).timeout
-		if is_instance_valid(parts):
-			parts.queue_free()
+	if not is_instance_valid(_world_vfx_container):
+		printerr("ERROR: _world_vfx_container became invalid during CoreClickVFX spawning!")
+		vfx_instance.queue_free()
+		return
+
+	_world_vfx_container.add_child(vfx_instance)
+	vfx_instance.play(position, color)
+	vfx_instance.finished.connect(Callable(vfx_instance, "queue_free"), CONNECT_ONE_SHOT)
+
+func _on_play_currency_flight_vfx_requested(start_screen_pos: Vector2, target_screen_pos: Vector2, color: Color) -> void:
+	if not _currency_flight_vfx_packed_scene:
+		printerr("ERROR: CurrencyFlightVFX PackedScene not loaded!")
+		return
+
+	var vfx_instance: CurrencyFlightVFX = _currency_flight_vfx_packed_scene.instantiate() as CurrencyFlightVFX
+	if not vfx_instance:
+		printerr("ERROR: Instantiate returned NULL or failed to cast for CurrencyFlightVFX. PackedScene: " + str(_currency_flight_vfx_packed_scene))
+		var instance_debug = _currency_flight_vfx_packed_scene.instantiate()
+		if instance_debug:
+			printerr("ERROR: Debug: Node instantiated, but cast failed. Node type: " + instance_debug.get_class() + ", Script: " + str(instance_debug.get_script()))
+			instance_debug.queue_free() # Clean up debug instance
+		else:
+			printerr("ERROR: Debug: instantiate() returned NULL for CurrencyFlightVFX.")
+		return
+
+	if not is_instance_valid(_ui_vfx_container):
+		printerr("ERROR: _ui_vfx_container became invalid during CurrencyFlightVFX spawning!")
+		vfx_instance.queue_free()
+		return
+
+	_ui_vfx_container.add_child(vfx_instance)
+	vfx_instance.play(start_screen_pos, target_screen_pos, color)
+	vfx_instance.finished.connect(Callable(vfx_instance, "queue_free"), CONNECT_ONE_SHOT)
 
 # ------------------------------------------------------------------------------
 # Public API (Audio Bridge)

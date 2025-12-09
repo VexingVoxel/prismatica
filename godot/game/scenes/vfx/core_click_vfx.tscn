@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://dk6xlhwmy4o2c"]
+
+[ext_resource type="Script" uid="uid://cv27gpg2qwb7w" path="res://game/scenes/vfx/core_click_vfx.gd" id="1_script"]
+
+[node name="CoreClickVFX" type="Node2D"]
+z_index = 200
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles2D" parent="."]
