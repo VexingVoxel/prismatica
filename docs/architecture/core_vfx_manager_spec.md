@@ -1,4 +1,4 @@
-# Core VFX System Design Specification v1.0
+# Core VFX System Design Specification v1.1
 
 ## 1. Introduction
 This document outlines the architecture and design of a generic, robust, and reusable Core VFX (Visual Effects) Manager system for Godot 4.x. The goal is to provide a foundational component suitable for integration into a core library project, emphasizing modularity, reusability, performance, and flexibility, particularly with GPU-based particles.
@@ -40,7 +40,7 @@ graph TD
 *   **Key Responsibilities:**
     *   **VFX Configuration Management:**
         *   Holds an `@export var vfx_library: Array[VFXConfig]` which is a collection of `VFXConfig` `Resource` files, allowing definition in the editor.
-        *   Initializes an internal `Dictionary` mapping `VFXConfig.id` to its `VFXConfig` instance for quick lookup.
+        *   **Recommendation Integrated:** In `_ready()`, an internal `_vfx_config_map: Dictionary = {}` will be populated from `vfx_library` for `O(1)` lookup by `id`. Duplicate `VFXConfig.id`s will trigger `printerr` warnings.
     *   **Object Pooling:**
         *   Manages a `Dictionary` of `Arrays` (`pools: Dictionary[String, Array[VFXInstance]]`) for inactive VFX instances, one pool per `vfx_id`.
         *   Implements `_get_from_pool(id)`: Attempts to retrieve an instance from the pool; if none are available or the pool is exhausted and `VFXConfig.can_be_pooled` is false, it creates a new instance.
@@ -52,11 +52,12 @@ graph TD
         *   Sets the instance's `global_transform` based on the event parameter.
         *   Determines the correct parent container (`world_vfx_root` or `ui_vfx_root`) based on `VFXConfig.parent_type` and adds the `VFXInstance` as a child.
         *   Calls the `VFXInstance.play(params)` method, passing parameters from the event, merged with `VFXConfig.default_params`.
-    *   **Lifecycle Management:** Connects to the `VFXInstance.finished` signal (using `CONNECT_ONE_SHOT` for pooled items). When `finished` is emitted, it returns the instance to the pool.
+    *   **Lifecycle Management:** Connects to the `VFXInstance.finished` signal (using `CONNECT_ONE_SHOT` to ensure the connection is automatically disconnected after the first emission for pooled items). When `finished` is emitted, it returns the instance to the pool.
     *   **Global Containers:**
         *   `@export var world_vfx_root_path: NodePath` (e.g., to `/root/Game/WorldVFX`). This `Node2D` acts as the parent for all world-space VFX.
         *   `@export var ui_vfx_root_path: NodePath` (e.g., to `/root/Game/UIVFX`). This `CanvasLayer` acts as the parent for all UI-space VFX.
         *   These `NodePath`s are configured in `project.godot` or the scene hierarchy in the editor, making the manager independent of specific scene names.
+        *   **Recommendation Integrated:** Implement `_ready()` checks for the validity of these paths, printing `printerr` warnings and establishing fallback if necessary (e.g., using `get_tree().root`).
 
 ### 4.2. `CoreVFXEventBusClass` (`core_vfx_event_bus.gd`) - The Generic Communication Channel
 
@@ -67,7 +68,7 @@ graph TD
     *   Defines a single, generic signal for requesting any VFX:
         `signal request_vfx(id: String, global_transform: Transform2D, params: Dictionary)`
         *   `id`: A `String` that uniquely identifies the requested VFX, matching a `VFXConfig.id`.
-        *   `global_transform`: A `Transform2D` (for 2D VFX) or `Transform3D` (for 3D VFX) specifying the position, rotation, and scale of the VFX in world/screen space.
+        *   **Recommendation Integrated:** For 2D VFX, `global_transform` is `Transform2D` specifying the position, rotation, and scale. For 3D VFX, a separate signal (e.g., `request_vfx_3d`) with `Transform3D` or an extension to `params` would be used. This specification primarily covers the 2D case.
         *   `params`: A `Dictionary` containing any additional, specific parameters the VFX instance might need (e.g., `color`, `speed_multiplier`, `target_position`). This allows for highly dynamic VFX.
     *   Other game systems emit this signal with the relevant data.
 
@@ -83,7 +84,8 @@ graph TD
     *   `can_be_pooled: bool = true`: If `true`, the `CoreVFXManager` will attempt to pool instances of this VFX.
     *   `initial_pool_size: int = 5`: The number of instances to pre-create in the pool at startup if `can_be_pooled` is true.
     *   `max_pool_size: int = 20`: The maximum number of instances to keep in the pool. If exceeded, instances will be `queue_free()`d.
-    *   `default_params: Dictionary`: A dictionary of default parameters (`key: Variant`) to pass to the `VFXInstance.play()` method. These can be overridden by parameters from the `request_vfx` signal.
+    *   `default_params: Dictionary`: A dictionary of default parameters (`key: Variant`) to pass to the `VFXInstance.play()` method.
+        *   **Recommendation Integrated:** When `CoreVFXManager` calls `VFXInstance.play()`, parameters from the `request_vfx` signal will override any matching keys in `default_params` from the `VFXConfig`. The merging strategy is `event_params.merge(config_default_params, true)`.
 
 ### 4.4. `VFXInstance` (`vfx_instance.gd`) - Base Class for All VFX Scripts
 
@@ -95,6 +97,12 @@ graph TD
     *   **`play(params: Dictionary = {}) -> void`:** An overridable method that specific VFX scripts must implement. It takes a `Dictionary` of parameters, merges them with any internal defaults, and uses them to configure and activate the visual effect (e.g., set `GPUParticles2D.process_material` properties, start tweens, play animations).
     *   **`signal finished`:** A signal that specific VFX scripts must emit when their visual effect has fully completed its intended duration or animation sequence. This is the trigger for `CoreVFXManager` to recycle or free the instance.
     *   **`reset() -> void`:** An overridable method to reset the VFX instance to its initial state, preparing it for reuse when returned to the pool. Essential for pooling.
+    *   **Recommendation Integrated:**
+        *   **Method Usage Guidance:**
+            *   `_init()`: Should be reserved for minimal, one-time setup that doesn't rely on being in the scene tree.
+            *   `_ready()`: Primarily for getting child nodes via `$Path` or for connecting internal signals. It will run every time an instance enters the scene tree (including when retrieved from a pool if it was `set_process_mode(Node.PROCESS_MODE_DISABLED)` then re-enabled).
+            *   `play()`: Handles dynamic configuration based on event parameters and initiates the effect (e.g., `GPUParticles2D.restart()`).
+            *   `reset()`: Crucial for pooled instances. It must clear any state, hide the instance, stop animations/particles, and prepare it for the next use.
 
 ### 4.5. Specific VFX Scene Scripts (e.g., `core_click_vfx.gd`, `currency_flight_vfx.gd`)
 
