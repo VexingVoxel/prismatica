@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="VFXConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://_core/resources/vfx/vfx_config.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://game/scenes/vfx/core_click_vfx.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+id = "core_click_vfx"
+packed_scene = ExtResource("2_scene")
+parent_type = 0
+can_be_pooled = true
+initial_pool_size = 5
+max_pool_size = 20
+default_params = {
+"color": Color(4, 3.5, 1, 1)
+}

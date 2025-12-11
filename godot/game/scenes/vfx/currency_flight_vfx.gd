@@ -1,6 +1,4 @@
-class_name CurrencyFlightVFX extends CanvasLayer
-
-signal finished
+class_name CurrencyFlightVFX extends VFXInstance
 
 # ------------------------------------------------------------------------------
 # Constants
@@ -20,6 +18,7 @@ const SHRINK_DURATION: float = 0.2
 const SHRINK_DELAY_OFFSET: float = 0.2
 
 var _spark_texture: GradientTexture2D
+var _tween: Tween
 
 func _init() -> void:
 	pass
@@ -45,7 +44,11 @@ func _ready() -> void:
 	else:
 		printerr("ERROR: CurrencyFlightVFX: 'Spark' Sprite2D node not found in _ready().")
 
-func play(start_screen_pos: Vector2, target_screen_pos: Vector2, color: Color) -> void:
+func play(params: Dictionary = {}) -> void:
+	var start_screen_pos: Vector2 = params.get("start_screen_pos", Vector2.ZERO)
+	var target_screen_pos: Vector2 = params.get("target_screen_pos", Vector2.ZERO)
+	var color: Color = params.get("color", Color.WHITE)
+
 	var sprite: Sprite2D = $Spark
 	var trail: CPUParticles2D = sprite.get_node("Trail")
 
@@ -59,20 +62,41 @@ func play(start_screen_pos: Vector2, target_screen_pos: Vector2, color: Color) -
 	sprite.modulate = color
 	trail.color = color * TRAIL_COLOR_MULTIPLIER
 	trail.emitting = true
+	sprite.scale = Vector2.ONE # Ensure scale is reset
 	
 	var duration = randf_range(FLIGHT_DURATION_MIN, FLIGHT_DURATION_MAX)
 	var spread = Vector2(randf_range(-BURST_SPREAD_MAGNITUDE, BURST_SPREAD_MAGNITUDE), randf_range(-BURST_SPREAD_MAGNITUDE, BURST_SPREAD_MAGNITUDE))
 	
-	var tween = create_tween()
+	if _tween: _tween.kill() # Safety check
+	_tween = create_tween()
 	
 	# Burst out
-	tween.tween_property(sprite, "position", start_screen_pos + spread, BURST_OUT_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(sprite, "position", start_screen_pos + spread, BURST_OUT_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	
 	# Fly to target
-	tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(FLIGHT_DELAY)
+	_tween.tween_property(sprite, "position", target_screen_pos, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN).set_delay(FLIGHT_DELAY)
 	
 	# Shrink (parallel)
-	tween.parallel().tween_property(sprite, "scale", Vector2(0,0), SHRINK_DURATION).set_delay(duration - SHRINK_DELAY_OFFSET)
+	_tween.parallel().tween_property(sprite, "scale", Vector2(0,0), SHRINK_DURATION).set_delay(duration - SHRINK_DELAY_OFFSET)
 	
-	await tween.finished
+	await _tween.finished
 	finished.emit()
+
+func reset() -> void:
+	var sprite: Sprite2D = $Spark
+	# Check for trail safely
+	if sprite:
+		var trail: CPUParticles2D = sprite.get_node_or_null("Trail")
+		if trail:
+			trail.emitting = false
+			# trail.clear_particles()
+		
+		sprite.position = Vector2.ZERO
+		sprite.scale = Vector2.ONE
+		sprite.modulate = Color.WHITE
+	
+	if _tween:
+		_tween.kill()
+		_tween = null
+	
+	hide()

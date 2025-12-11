@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="VFXConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://_core/resources/vfx/vfx_config.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://game/scenes/vfx/currency_flight_vfx.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+id = "currency_flight_vfx"
+packed_scene = ExtResource("2_scene")
+parent_type = 1
+can_be_pooled = true
+initial_pool_size = 3
+max_pool_size = 10
+default_params = {
+"color": Color(1, 0.8, 0, 1),
+"start_screen_pos": Vector2(0, 0),
+"target_screen_pos": Vector2(0, 0)
+}

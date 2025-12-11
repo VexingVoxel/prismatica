@@ -20,6 +20,15 @@ const PRESTIGE_THRESHOLD_LIFETIME_SPARKS: int = 1000 # Lifetime sparks needed to
 const CLICK_BASE_VALUE: int = 1
 const UPGRADE_COST_SCALING_FACTOR: int = 50 # Base cost per level for upgrading a shape
 
+# VFX Constants
+const CORE_CLICK_VFX_ID: String = "core_click_vfx"
+const CURRENCY_FLIGHT_VFX_ID: String = "currency_flight_vfx"
+const GRID_CELL_SIZE: int = 64
+const CORE_CLICK_GRID_COLOR: Color = Color.CYAN
+const CURRENCY_FLIGHT_COLOR: Color = Color(1.0, 0.8, 0.0, 1.0)
+const CURRENCY_FLIGHT_TARGET_X_FACTOR: float = 0.5
+const CURRENCY_FLIGHT_TARGET_Y_POS: float = 60.0
+
 # ------------------------------------------------------------------------------
 # State
 # ------------------------------------------------------------------------------
@@ -205,6 +214,22 @@ func click_core(screen_pos: Vector2) -> void:
 	
 	# 2. Feedback: Emit Signal for VFX/Juice
 	GameplayEventBus.core_clicked.emit(screen_pos)
+	
+	# Core Click VFX (New CoreVFXSystem)
+	var click_transform = Transform2D(0, screen_pos)
+	CoreVFXEventBus.request_vfx.emit(CORE_CLICK_VFX_ID, click_transform, {}) # Default gold color from config
+	
+	# Currency Flight VFX (New CoreVFXSystem)
+	var viewport = get_viewport()
+	var start_pos = viewport.canvas_transform * screen_pos
+	var screen_size = viewport.get_visible_rect().size
+	var target_pos = Vector2(screen_size.x * CURRENCY_FLIGHT_TARGET_X_FACTOR, CURRENCY_FLIGHT_TARGET_Y_POS)
+	
+	CoreVFXEventBus.request_vfx.emit(CURRENCY_FLIGHT_VFX_ID, Transform2D(), {
+		"start_screen_pos": start_pos,
+		"target_screen_pos": target_pos,
+		"color": CURRENCY_FLIGHT_COLOR
+	})
 
 ## Attempts to place a shape on the grid. Handles cost.
 func try_place_shape(coords: Vector2i, type: String, cost: BigNumber) -> bool:
@@ -228,6 +253,12 @@ func try_place_shape(coords: Vector2i, type: String, cost: BigNumber) -> bool:
 			_sparks.to_formatted_string()
 		)
 		GameplayEventBus.grid_shape_placed.emit(coords, type)
+		
+		# VFX: Spawn CoreClickVFX at grid position (Cyan)
+		var world_pos: Vector2 = Vector2(coords) * GRID_CELL_SIZE
+		var vfx_transform = Transform2D(0, world_pos)
+		CoreVFXEventBus.request_vfx.emit(CORE_CLICK_VFX_ID, vfx_transform, {"color": CORE_CLICK_GRID_COLOR})
+		
 		return true
 	
 	return false

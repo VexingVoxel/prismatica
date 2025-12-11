@@ -2,8 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cnfkpqj8go5eu" path="res://game/scenes/vfx/currency_flight_vfx.gd" id="1_script"]
 
-[node name="CurrencyFlightVFX" type="CanvasLayer"]
-layer = 100
+[node name="CurrencyFlightVFX" type="Node2D"]
 script = ExtResource("1_script")
 
 [node name="Spark" type="Sprite2D" parent="."]
