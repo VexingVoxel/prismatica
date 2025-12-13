@@ -14,7 +14,7 @@ var _ui_vfx_root: Node    # Resolved Node for UI-space VFX
 
 func _ready() -> void:
 	_initialize_config_map()
-	_initialize_root_nodes()
+	# Roots are resolved lazily when needed
 	_initialize_pools()
 	_connect_event_bus()
 
@@ -31,21 +31,40 @@ func _initialize_config_map() -> void:
 	if _vfx_config_map.is_empty():
 		printerr("CoreVFXManager: No valid VFXConfigs loaded.")
 
-# Resolves NodePath roots for parenting VFX, with validation and fallbacks.
-func _initialize_root_nodes() -> void:
+# Lazily resolves the World VFX root
+func _get_world_vfx_root() -> Node:
+	if is_instance_valid(_world_vfx_root):
+		return _world_vfx_root
+		
+	# Try to resolve from path
 	_world_vfx_root = get_node_or_null(world_vfx_root_path)
-	if not is_instance_valid(_world_vfx_root):
-		printerr("ERROR: CoreVFXManager: World VFX root path (", world_vfx_root_path, ") is invalid. Falling back to '/root/Main'.")
-		_world_vfx_root = get_tree().root.get_node_or_null("Main") # Common fallback
-		if not is_instance_valid(_world_vfx_root):
-			printerr("FATAL ERROR: CoreVFXManager: Fallback '/root/Main' is also invalid! World VFX may not appear.")
-			
+	if is_instance_valid(_world_vfx_root):
+		return _world_vfx_root
+		
+	# Fallback
+	_world_vfx_root = get_tree().root.get_node_or_null("Main")
+	if is_instance_valid(_world_vfx_root):
+		return _world_vfx_root
+		
+	# Last ditch attempt: Main might be a child of root but not named "Main" (unlikely in this setup)
+	return null
+
+# Lazily resolves the UI VFX root
+func _get_ui_vfx_root() -> Node:
+	if is_instance_valid(_ui_vfx_root):
+		return _ui_vfx_root
+		
+	# Try to resolve from path
 	_ui_vfx_root = get_node_or_null(ui_vfx_root_path)
-	if not is_instance_valid(_ui_vfx_root):
-		printerr("ERROR: CoreVFXManager: UI VFX root path (", ui_vfx_root_path, ") is invalid. Falling back to '/root/Main/HUD'.")
-		_ui_vfx_root = get_tree().root.get_node_or_null("Main/HUD") # Common fallback
-		if not is_instance_valid(_ui_vfx_root):
-			printerr("FATAL ERROR: CoreVFXManager: Fallback '/root/Main/HUD' is also invalid! UI VFX may not appear.")
+	if is_instance_valid(_ui_vfx_root):
+		return _ui_vfx_root
+		
+	# Fallback
+	_ui_vfx_root = get_tree().root.get_node_or_null("Main/HUD")
+	if is_instance_valid(_ui_vfx_root):
+		return _ui_vfx_root
+		
+	return null
 
 # Pre-populates object pools based on VFXConfig settings.
 func _initialize_pools() -> void:
@@ -101,9 +120,9 @@ func _create_new_vfx_instance(config: VFXConfig) -> VFXInstance:
 func _get_vfx_instance(id: String, config: VFXConfig) -> VFXInstance:
 	if config.can_be_pooled and _pools.has(id) and not _pools[id].is_empty():
 		var instance: VFXInstance = _pools[id].pop_back()
-		instance.show()
 		instance.set_process_mode(Node.PROCESS_MODE_INHERIT) # Re-enable processing
-		instance.reset() # Reset before use
+		instance.reset() # Reset before use (might hide it)
+		instance.show() # Ensure visible
 		return instance
 	
 	# If not pooled, or pool is empty/full, create new.
@@ -129,12 +148,12 @@ func _setup_and_play_vfx(instance: VFXInstance, config: VFXConfig, global_transf
 	var parent_node: Node
 	match config.parent_type:
 		VFXParentType.ParentType.WORLD_SPACE:
-			parent_node = _world_vfx_root
+			parent_node = _get_world_vfx_root()
 		VFXParentType.ParentType.UI_SPACE:
-			parent_node = _ui_vfx_root
+			parent_node = _get_ui_vfx_root()
 		_:
 			printerr("CoreVFXManager: Unknown ParentType for ID: ", config.id, ". Falling back to world_vfx_root.")
-			parent_node = _world_vfx_root
+			parent_node = _get_world_vfx_root()
 			
 	if not is_instance_valid(parent_node):
 		printerr("FATAL ERROR: CoreVFXManager: Parent node is invalid for ID: ", config.id, ". VFX will not be spawned.")
@@ -153,5 +172,6 @@ func _setup_and_play_vfx(instance: VFXInstance, config: VFXConfig, global_transf
 	for key in event_params: # Overlay event-specific params
 		final_params[key] = event_params[key]
 	
-	instance.play(final_params)
-	instance.finished.connect(Callable(self, "_return_to_pool").bind(instance), CONNECT_ONE_SHOT)
+	instance.call_deferred("play", final_params)
+	if not instance.finished.is_connected(Callable(self, "_return_to_pool")):
+		instance.finished.connect(Callable(self, "_return_to_pool").bind(instance), CONNECT_ONE_SHOT)

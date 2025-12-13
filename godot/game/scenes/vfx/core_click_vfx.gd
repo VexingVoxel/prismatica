@@ -28,11 +28,7 @@ func reset() -> void:
 	var particles: CPUParticles2D = $Particles
 	if particles:
 		particles.emitting = false
-		# particles.clear_particles() # clear_particles() might not be available on CPUParticles2D in Godot 4.x? Checking... 
-		# It is available. But restart() usually clears.
-		# For pooling, we just want it to stop.
-		pass
-	
+		
 	global_position = Vector2.ZERO
 	rotation = 0.0
 	scale = Vector2.ONE

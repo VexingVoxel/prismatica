@@ -1,0 +1,11 @@
+[gd_scene load_steps=4 format=3 uid="uid://corevfxmanager001"]
+
+[ext_resource type="Script" path="res://_core/autoload/core_vfx_manager.gd" id="1_script"]
+[ext_resource type="Resource" path="res://_core/resources/vfx/core_click_vfx_config.tres" id="2_click"]
+[ext_resource type="Resource" path="res://_core/resources/vfx/currency_flight_vfx_config.tres" id="3_currency"]
+
+[node name="CoreVFXManager" type="Node"]
+script = ExtResource("1_script")
+vfx_library = Array[Resource]([ExtResource("2_click"), ExtResource("3_currency")])
+world_vfx_root_path = NodePath("/root/Main")
+ui_vfx_root_path = NodePath("/root/Main/HUD")

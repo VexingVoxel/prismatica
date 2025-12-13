@@ -89,7 +89,6 @@ func reset() -> void:
 		var trail: CPUParticles2D = sprite.get_node_or_null("Trail")
 		if trail:
 			trail.emitting = false
-			# trail.clear_particles()
 		
 		sprite.position = Vector2.ZERO
 		sprite.scale = Vector2.ONE
